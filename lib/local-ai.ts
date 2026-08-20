@@ -1,6 +1,7 @@
 import type { TextGenerationPipeline } from '@huggingface/transformers';
 
-const MODEL_ID = 'onnx-community/SmolLM2-360M-Instruct-ONNX';
+// Small quantized model chosen for browser memory limits.
+const MODEL_ID = 'onnx-community/SmolLM2-135M-Instruct-ONNX-MHA';
 let generatorPromise: Promise<TextGenerationPipeline> | null = null;
 
 export type LocalQuestion = {
@@ -19,8 +20,11 @@ async function getGenerator(onProgress?: (message: string) => void) {
       const { pipeline, env } = await import('@huggingface/transformers');
       env.allowLocalModels = false;
       env.useBrowserCache = true;
-      onProgress?.('Downloading the free local AI model (first time only)…');
-      return pipeline('text-generation', MODEL_ID, { dtype: 'q4' });
+      onProgress?.('Loading the lightweight free AI model (first time only)…');
+      return pipeline('text-generation', MODEL_ID, {
+        dtype: 'q4',
+        device: 'wasm',
+      });
     })();
   }
   return generatorPromise;
@@ -45,12 +49,19 @@ function cleanJson(raw: string): LocalQuestion[] {
 
 export async function generateLocalQuestions(text: string, onProgress?: (message: string) => void): Promise<LocalQuestion[]> {
   const generator: any = await getGenerator(onProgress);
-  const material = text.slice(0, 12000);
-  const prompt = `You are an exam question generator. Use ONLY the study material below. Create exactly 10 questions. Mix 4 MCQ, 3 short-answer, and 3 long-answer questions. MCQs must have exactly four options. Give a concise answer, explanation, and a short source phrase copied from the material. Return ONLY a JSON array with objects containing: id, type, question, answer, explanation, source, options.\n\nSTUDY MATERIAL:\n${material}`;
-  onProgress?.('The local AI is generating questions on this device…');
-  const output = await generator(prompt, { max_new_tokens: 1000, do_sample: false, return_full_text: false });
+
+  // Keep the prompt deliberately small so low-RAM phones/laptops do not exhaust WASM memory.
+  const material = text.replace(/\s+/g, ' ').trim().slice(0, 4500);
+  const prompt = `You create exam questions from study material. Use ONLY the material. Return ONLY valid JSON array. Create 6 questions: 2 mcq, 2 short, 2 long. MCQ has four options. Each object has id,type,question,answer,explanation,source,options. Keep answers and explanations short.\n\nSTUDY MATERIAL:\n${material}`;
+
+  onProgress?.('Free AI is generating questions on this device…');
+  const output = await generator(prompt, {
+    max_new_tokens: 450,
+    do_sample: false,
+    return_full_text: false,
+  });
   const raw = Array.isArray(output) ? String(output[0]?.generated_text ?? '') : String(output?.generated_text ?? output ?? '');
   const questions = cleanJson(raw);
-  if (questions.length < 5) throw new Error('The local AI could not generate enough reliable questions. Try a shorter or clearer document.');
+  if (questions.length < 3) throw new Error('The lightweight local AI could not generate enough questions. Try a shorter or clearer document.');
   return questions;
 }
