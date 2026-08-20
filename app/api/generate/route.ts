@@ -19,7 +19,7 @@ const schema = {
           answer: { type: "string" },
           explanation: { type: "string" },
           source: { type: "string" },
-          options: { type: ["array", "null"], items: { type: "string" } }
+          options: { anyOf: [{ type: "array", items: { type: "string" } }, { type: "null" }] }
         },
         required: ["id", "type", "question", "answer", "explanation", "source", "options"]
       }
@@ -30,7 +30,7 @@ const schema = {
 
 export async function POST(request: Request) {
   try {
-    const { text, count = 10 } = await request.json();
+    const { text } = await request.json();
     if (typeof text !== "string" || text.trim().length < 80) {
       return NextResponse.json({ error: "Not enough study content was extracted." }, { status: 400 });
     }
@@ -40,24 +40,15 @@ export async function POST(request: Request) {
     }
 
     const client = new OpenAI({ apiKey });
-    const source = text.slice(0, 80000);
     const response = await client.responses.create({
       model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
       store: false,
-      instructions: "You are an exam-preparation question generator. Use ONLY the supplied study material. Do not invent facts. Create exactly 10 useful questions covering the important concepts. Mix MCQ, short-answer, and long-answer questions. For MCQs provide exactly 4 options. Every answer and explanation must be supported by the source. The source field should quote a short identifying phrase from the supplied material, not a fabricated citation.",
-      input: `Study material:\n\n${source}`,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "exam_questions",
-          strict: true,
-          schema
-        }
-      }
+      instructions: "You are an exam-preparation question generator. Use ONLY the supplied study material. Do not invent facts. Create exactly 10 useful questions covering important concepts. Mix MCQ, short-answer, and long-answer questions. For MCQs provide exactly 4 options; for short and long questions set options to null. Every answer and explanation must be supported by the source. The source field should quote a short identifying phrase from the supplied material, not a fabricated citation.",
+      input: `Study material:\n\n${text.slice(0, 80000)}`,
+      text: { format: { type: "json_schema", name: "exam_questions", strict: true, schema } }
     });
 
-    const parsed = JSON.parse(response.output_text);
-    return NextResponse.json(parsed);
+    return NextResponse.json(JSON.parse(response.output_text));
   } catch (error) {
     console.error("Question generation failed", error);
     return NextResponse.json({ error: "Question generation failed. Check the server configuration and try again." }, { status: 500 });
