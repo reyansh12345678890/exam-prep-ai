@@ -1,5 +1,4 @@
 import JSZip from 'jszip';
-import mammoth from 'mammoth/mammoth.browser';
 
 export type SupportedKind = 'pdf' | 'docx' | 'pptx' | 'image';
 export type Extracted = { text: string; kind: SupportedKind; pages?: number };
@@ -16,7 +15,7 @@ export function kindOf(file: File): SupportedKind | null {
   return null;
 }
 
-export async function extract(file: File, onProgress?: (done:number,total:number)=>void): Promise<Extracted> {
+export async function extract(file: File, onProgress?: (done: number, total: number) => void): Promise<Extracted> {
   if (file.size > MAX_FILE_BYTES) throw new Error('File is larger than 25 MB. Please split it into smaller files.');
   const kind = kindOf(file);
   if (!kind) throw new Error('Unsupported file. Please upload PDF, Word, PowerPoint, PNG, JPG, JPEG, or WEBP.');
@@ -25,11 +24,7 @@ export async function extract(file: File, onProgress?: (done:number,total:number
     throw new Error('Image upload is supported, but OCR/handwriting recognition is the next AI phase.');
   }
   if (kind === 'pdf') return extractPdf(file, onProgress);
-  if (kind === 'docx') {
-    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
-    if (!result.value.trim()) throw new Error('No readable text was found in this Word document.');
-    return { text: result.value.trim(), kind };
-  }
+  if (kind === 'docx') return extractDocx(file);
   return extractPptx(file);
 }
 
@@ -42,12 +37,23 @@ async function extractPdf(file: File, onProgress?: (done:number,total:number)=>v
   for (let i=1;i<=doc.numPages;i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    pages.push(content.items.map((x:any)=>'str' in x ? x.str : '').join(' ').replace(/\s+/g,' ').trim());
+    pages.push(content.items.map((x: any) => 'str' in x ? x.str : '').join(' ').replace(/\s+/g,' ').trim());
     onProgress?.(i, doc.numPages);
   }
   const text = pages.filter(Boolean).join('\n\n');
   if (text.replace(/\s/g,'').length < 80) throw new Error('This PDF has little or no selectable text. It may be scanned or handwritten; vision/OCR support is next.');
   return { text, kind:'pdf', pages:doc.numPages };
+}
+
+async function extractDocx(file: File): Promise<Extracted> {
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const entry = zip.file('word/document.xml');
+  if (!entry) throw new Error('This Word document does not contain a readable document body.');
+  const xml = await entry.async('string');
+  const paragraphs = [...xml.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map(m => decodeXml(m[1]));
+  const text = paragraphs.join(' ').replace(/\s+/g, ' ').trim();
+  if (!text) throw new Error('No readable text was found in this Word document.');
+  return { text, kind:'docx' };
 }
 
 async function extractPptx(file: File): Promise<Extracted> {
@@ -56,7 +62,9 @@ async function extractPptx(file: File): Promise<Extracted> {
   names.sort((a,b)=>Number(a.match(/slide(\d+)/i)?.[1])-Number(b.match(/slide(\d+)/i)?.[1]));
   const texts:string[] = [];
   for (const name of names) {
-    const xml = await zip.file(name)!.async('string');
+    const entry = zip.file(name);
+    if (!entry) continue;
+    const xml = await entry.async('string');
     const matches = [...xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)].map(m => decodeXml(m[1]));
     if (matches.length) texts.push(matches.join(' '));
   }
@@ -65,4 +73,6 @@ async function extractPptx(file: File): Promise<Extracted> {
   return { text, kind:'pptx', pages:names.length };
 }
 
-function decodeXml(s:string){return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'");}
+function decodeXml(s:string) {
+  return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'");
+}
