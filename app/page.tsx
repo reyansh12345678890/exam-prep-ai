@@ -20,7 +20,7 @@ export default function Home(){
     try{
       const result=await extract(f,(done,total)=>setStatus(`Reading page ${done} of ${total}…`));
       setText(result.text);
-      setStatus(`${result.kind.toUpperCase()} content extracted. Ready for local AI.`);
+      setStatus(`${result.kind.toUpperCase()} content extracted. Ready for free local AI.`);
     }catch(e){setFile(null);setStatus('');setError(e instanceof Error?e.message:'Could not read this file.');}
   }
 
@@ -36,10 +36,10 @@ export default function Home(){
   }
 
   return <main>
-    <section className="hero"><div><div>AI EXAM PREP · FREE LOCAL AI</div><h1>Turn your study material into practice questions</h1><p>Upload PDF, Word, PowerPoint, or study material. Your document stays on your device and the free AI model runs locally in your browser.</p></div></section>
+    <section className="hero"><div><div>AI EXAM PREP · FREE LOCAL AI</div><h1>Turn your study material into practice questions</h1><p>Upload PDF, Word, PowerPoint, or study material. Your document stays on your device and the lightweight free AI model runs locally in your browser.</p></div></section>
     <section className="wrap"><div className="card">
       {!file ? <div className="drop" onClick={()=>input.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)choose(f)}}><div className="icon">↑</div><h2>Drop your study material here</h2><p className="muted">or click to browse your computer</p><button className="button" type="button">Choose file</button><div className="formats">PDF · DOCX · PPTX · PNG · JPG · JPEG · WEBP · up to 25 MB</div></div>:
-      <><div className="file"><strong>{file.name}</strong><span className="muted">{kindOf(file)?.toUpperCase()}</span></div><div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}><button className="button" onClick={()=>input.current?.click()}>Choose another file</button>{text && <button className="button" onClick={generateQuestions} disabled={generating}>{generating?'Generating locally…':'Generate 10 Questions with Free AI'}</button>}</div></>}
+      <><div className="file"><strong>{file.name}</strong><span className="muted">{kindOf(file)?.toUpperCase()}</span></div><div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:14}}><button className="button" onClick={()=>input.current?.click()}>Choose another file</button>{text && <button className="button" onClick={generateQuestions} disabled={generating}>{generating?'Generating locally…':'Generate Questions with Free AI'}</button>}</div></>}
       <input ref={input} hidden type="file" accept={ACCEPT} onChange={e=>{const f=e.target.files?.[0];if(f)choose(f);e.currentTarget.value=''}} />
       {status && <p className="muted" style={{marginTop:18}}>{status}</p>}
       {error && <div className="error">{error}</div>}
