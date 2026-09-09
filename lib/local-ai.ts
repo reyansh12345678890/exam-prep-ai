@@ -19,7 +19,6 @@ async function getGenerator(onProgress?: (message: string) => void) {
     generatorPromise = (async () => {
       const { pipeline, env } = await import('@huggingface/transformers');
       env.allowLocalModels = false;
-      env.useLocalModels = false;
       env.useBrowserCache = true;
       onProgress?.('Loading lightweight free AI (first time only)…');
       return pipeline('text-generation', MODEL_ID, { dtype: 'q4', device: 'wasm' });
