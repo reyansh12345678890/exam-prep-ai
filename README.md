@@ -2,6 +2,13 @@
 
 A privacy-first exam-preparation app that extracts study material from PDF, DOCX, and PPTX files and generates practice questions using a free local AI model in the browser.
 
+## Ownership and usage
+
+Copyright (c) 2026 Reyansh Gupta. All rights reserved. This repository is publicly
+visible for portfolio and review purposes, but the source code is not licensed for
+unauthorized copying, redistribution, resale, or derivative commercial use. See
+[LICENSE](./LICENSE) for the full notice.
+
 ## Cost model
 
 Question generation does not call OpenAI or any paid API. The local model is downloaded to the student's browser on first use and then cached by the browser. Study content is processed locally for question generation.

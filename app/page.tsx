@@ -81,6 +81,9 @@ export default function Home() {
       {active === 'coding' && <Coding code={code} setCode={setCode} />}
       {active === 'visuals' && <Visuals text={text} />}
       {active === 'progress' && <Progress questions={questions} />}
+      <footer className="ownership-footer">
+        <strong>StudyForge</strong> · © 2026 Reyansh Gupta · All rights reserved
+      </footer>
     </section>
   </main>;
 }
